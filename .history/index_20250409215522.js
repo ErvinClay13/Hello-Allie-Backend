@@ -90,6 +90,7 @@ const dotenv = require('dotenv');
 const { OpenAI } = require('openai');
 const multer = require('multer');
 const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 
 dotenv.config();
@@ -103,45 +104,10 @@ const openai = new OpenAI({
 app.use(cors());
 app.use(express.json());
 
-// Detect if prompt is a weather request
-const isWeatherRequest = (text) => {
-  return /weather in ([a-zA-Z\s]+)/i.test(text);
-};
-
-const extractCity = (text) => {
-  const match = text.match(/weather in ([a-zA-Z\s]+)/i);
-  return match ? match[1].trim() : null;
-};
-
-const fetchWeather = async (city) => {
-  try {
-    const response = await axios.get(`https://open-weather13.p.rapidapi.com/city/${city}/EN`, {
-      headers: {
-        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-        'X-RapidAPI-Host': 'open-weather13.p.rapidapi.com',
-      },
-    });
-
-    const data = response.data;
-    return `The current weather in ${data.name}, ${data.sys.country} is ${data.weather[0].description} with a temperature of ${data.main.temp}°C.`;
-  } catch (error) {
-    console.error('Weather API error:', error?.response?.data || error.message);
-    return `Sorry, I couldn't retrieve the weather for "${city}".`;
-  }
-};
-
 // AI chat response endpoint
 app.post('/api/generate', async (req, res) => {
   try {
     const { prompt } = req.body;
-
-    if (isWeatherRequest(prompt)) {
-      const city = extractCity(prompt);
-      if (city) {
-        const weather = await fetchWeather(city);
-        return res.json({ result: weather });
-      }
-    }
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',
@@ -155,13 +121,12 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
-// File upload setup
+// File upload setup for Whisper
 const upload = multer({ dest: 'uploads/' });
 
 app.post('/api/transcribe', upload.single('file'), async (req, res) => {
   try {
     const file = req.file;
-
     if (!file) {
       return res.status(400).json({ error: 'No audio file uploaded' });
     }
@@ -189,6 +154,29 @@ app.post('/api/transcribe', upload.single('file'), async (req, res) => {
     const message = error?.response?.data || error.message;
     console.error('Whisper transcription error:', message);
     res.status(500).json({ error: 'Failed to transcribe audio' });
+  }
+});
+
+// Weather API route
+app.get('/api/weather/:city', async (req, res) => {
+  const city = req.params.city;
+
+  const options = {
+    method: 'GET',
+    url: `https://open-weather13.p.rapidapi.com/city/${city}/EN`,
+    headers: {
+      'x-rapidapi-key': process.env.RAPIDAPI_KEY,
+      'x-rapidapi-host': 'open-weather13.p.rapidapi.com',
+    },
+  };
+
+  try {
+    const response = await axios.request(options);
+    res.json(response.data);
+  } catch (error) {
+    const msg = error?.response?.data || error.message;
+    console.error('Weather API error:', msg);
+    res.status(500).json({ error: 'Failed to fetch weather data' });
   }
 });
 
