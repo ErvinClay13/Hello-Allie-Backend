@@ -314,7 +314,6 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
-
 const upload = multer({ dest: 'uploads/' });
 
 app.post('/api/transcribe', upload.single('file'), async (req, res) => {

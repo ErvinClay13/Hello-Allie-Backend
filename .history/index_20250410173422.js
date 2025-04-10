@@ -314,7 +314,9 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
-
+// ==========================
+// Whisper Transcription
+// ==========================
 const upload = multer({ dest: 'uploads/' });
 
 app.post('/api/transcribe', upload.single('file'), async (req, res) => {
