@@ -202,6 +202,7 @@
 
 
 
+// BACKEND: index.js
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -371,3 +372,6 @@ app.post('/api/transcribe', upload.single('file'), async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+
+
