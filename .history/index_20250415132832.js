@@ -17,68 +17,102 @@ const openai = new OpenAI({
 app.use(cors());
 app.use(express.json());
 
-// Dynamically detect team name and use sports search
-const detectSportType = (text) => {
-  const lower = text.toLowerCase();
-
-  let type = null;
-  if (lower.includes('score')) type = 'scores';
-  else if (lower.includes('schedule') || lower.includes('next game') || lower.includes('when')) type = 'schedule';
-  else if (lower.includes('summary') || lower.includes('recap')) type = 'summary';
-  else if (lower.includes('odds') || lower.includes('betting')) type = 'odds';
-
-  return type;
+// Sports detection helpers
+const sportsTeams = {
+  nba: 4,
+  nfl: 2,
+  mlb: 3,
+  bulls: 4,
+  lakers: 4,
+  knicks: 4,
+  warriors: 4,
+  bears: 2,
+  jets: 2,
+  eagles: 2,
+  yankees: 3,
+  dodgers: 3,
 };
 
-const fetchDynamicSportsData = async (teamName, type) => {
-  const sportIds = [2, 3, 4]; // NFL, MLB, NBA
+const extractTeamAndType = (text) => {
+  const lower = text.toLowerCase();
+  let type = null;
+  let teamKey = null;
+
+  if (lower.includes('score')) type = 'scores';
+  else if (lower.includes('schedule') || lower.includes('play next')) type = 'schedule';
+  else if (lower.includes('summary')) type = 'summary';
+  else if (lower.includes('odds') || lower.includes('betting')) type = 'odds';
+
+  for (const key in sportsTeams) {
+    if (lower.includes(key)) {
+      teamKey = key;
+      break;
+    }
+  }
+
+  return { teamKey, type };
+};
+
+const fetchSportsData = async (teamKey, type) => {
+  const sportId = sportsTeams[teamKey];
+  const baseUrl = 'https://therundown-therundown-v1.p.rapidapi.com/sports';
+  const today = new Date().toISOString().split('T')[0];
+
   const headers = {
     'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
     'X-RapidAPI-Host': 'therundown-therundown-v1.p.rapidapi.com',
   };
-  const today = new Date().toISOString().split('T')[0];
 
-  for (const sportId of sportIds) {
-    try {
-      const url = `https://therundown-therundown-v1.p.rapidapi.com/sports/${sportId}/events?date=${today}`;
+  try {
+    if (type === 'scores' || type === 'summary' || type === 'schedule') {
+      const url = `${baseUrl}/${sportId}/events`; // fixed endpoint
       const res = await axios.get(url, { headers });
       const games = res.data.events || [];
-      const match = games.find((game) => {
+
+      const teamGame = games.find((game) => {
         return (
-          game.teams?.home.toLowerCase().includes(teamName) ||
-          game.teams?.away.toLowerCase().includes(teamName)
+          game.teams &&
+          (game.teams.away.toLowerCase().includes(teamKey) ||
+            game.teams.home.toLowerCase().includes(teamKey))
         );
       });
 
-      if (!match) continue;
+      if (!teamGame) return `No game found for ${teamKey}.`;
 
       if (type === 'scores') {
-        return `${match.teams.away} ${match.score?.away ?? '?'} - ${match.teams.home} ${match.score?.home ?? '?'}`;
-      } else if (type === 'schedule') {
-        return `${match.teams.away} vs ${match.teams.home} — ${match.event_date}`;
-      } else if (type === 'summary') {
-        return `${match.teams.away} vs ${match.teams.home} — ${match.event_status}`;
-      } else if (type === 'odds') {
-        const oddsUrl = `https://therundown-therundown-v1.p.rapidapi.com/sports/${sportId}/odds`; // Optional
-        const oddsRes = await axios.get(oddsUrl, { headers });
-        const oddsGames = oddsRes.data.games || [];
-        const oddsMatch = oddsGames.find((g) =>
-          g.teams?.home.toLowerCase().includes(teamName) ||
-          g.teams?.away.toLowerCase().includes(teamName)
-        );
-        if (oddsMatch && oddsMatch.odds) {
-          return `${oddsMatch.teams.away} vs ${oddsMatch.teams.home} — Spread: ${oddsMatch.odds.spread}, Total: ${oddsMatch.odds.total}`;
-        }
-        return 'No odds found for that team.';
+        return `${teamGame.teams.away} ${teamGame.score?.away ?? '?'} - ${teamGame.teams.home} ${teamGame.score?.home ?? '?'}`;
       }
-    } catch (e) {
-      console.error('Dynamic sports error:', e?.response?.data || e.message);
+
+      if (type === 'summary') {
+        return `${teamGame.teams.away} vs ${teamGame.teams.home} — ${teamGame.event_status} on ${teamGame.event_date}`;
+      }
+
+      if (type === 'schedule') {
+        return `${teamGame.teams.away} vs ${teamGame.teams.home} at ${teamGame.event_date}`;
+      }
+    } else if (type === 'odds') {
+      const url = `${baseUrl}/${sportId}/odds`;
+      const res = await axios.get(url, { headers });
+      const games = res.data.games || [];
+      const teamGame = games.find((game) => {
+        return (
+          game.teams &&
+          (game.teams.away.toLowerCase().includes(teamKey) ||
+            game.teams.home.toLowerCase().includes(teamKey))
+        );
+      });
+      if (!teamGame) return `No odds found for ${teamKey}.`;
+      return `${teamGame.teams.away} vs ${teamGame.teams.home} — spread: ${teamGame.odds.spread}, total: ${teamGame.odds.total}`;
     }
+
+    return 'Sorry, I could not get the requested sports info.';
+  } catch (error) {
+    console.error('Score API error:', error?.response?.data || error.message);
+    return 'Sorry, something went wrong getting sports info.';
   }
-  return `Sorry, I couldn't find recent info for ${teamName}.`;
 };
 
-// AI chat + weather + sports
+// Detect if it's weather or sports before fallback AI
 app.post('/api/generate', async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -94,14 +128,10 @@ app.post('/api/generate', async (req, res) => {
       return res.json({ result: response.data.result });
     }
 
-    const type = detectSportType(prompt);
-    if (type) {
-      const match = prompt.match(/(?:for|of|do|is|are|when|does|game|next|play) ([a-zA-Z\s]+)/i);
-      const teamGuess = match ? match[1].toLowerCase().trim() : null;
-      if (teamGuess) {
-        const result = await fetchDynamicSportsData(teamGuess, type);
-        return res.json({ result });
-      }
+    const { teamKey, type } = extractTeamAndType(prompt);
+    if (teamKey && type) {
+      const sportsResult = await fetchSportsData(teamKey, type);
+      return res.json({ result: sportsResult });
     }
 
     const completion = await openai.chat.completions.create({
@@ -116,6 +146,7 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
+// Whisper endpoint
 const upload = multer({ dest: 'uploads/' });
 app.post('/api/transcribe', upload.single('file'), async (req, res) => {
   try {
@@ -139,6 +170,7 @@ app.post('/api/transcribe', upload.single('file'), async (req, res) => {
   }
 });
 
+// Weather proxy endpoint
 app.post('/api/weather', async (req, res) => {
   try {
     const { city } = req.body;
@@ -160,7 +192,6 @@ app.post('/api/weather', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
 
 
 
