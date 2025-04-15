@@ -34,9 +34,7 @@ const fetchWeather = async (city) => {
     );
     const data = await response.json();
     const tempF = (data.main.temp * 9) / 5 + 32;
-    const humidity = data.main.humidity;
-    const windSpeed = data.wind.speed;
-    return `The current weather in ${data.name}, ${data.sys.country} is ${data.weather[0].description} with a temperature of ${tempF.toFixed(1)}°F, humidity of ${humidity}% and wind speed of ${windSpeed} m/s.`;
+    return `The current weather in ${data.name}, ${data.sys.country} is ${data.weather[0].description} with a temperature of ${tempF.toFixed(1)}°F.`;
   } catch (error) {
     console.error("Weather API error:", error);
     return `Sorry, I couldn't retrieve the weather for "${city}".`;
