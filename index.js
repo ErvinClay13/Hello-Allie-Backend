@@ -35,18 +35,20 @@ const fetchWeather = async (city) => {
       }
     );
     const data = await response.json();
-
-    // API already returns temperature in Fahrenheit
-    const tempF = data.main.temp;
+    const tempC = data.main.temp;
+    const tempF = (tempC * 9) / 5 + 32; // Correct Celsius to Fahrenheit conversion
     const humidity = data.main.humidity;
     const windSpeed = data.wind.speed;
-
     return `The current weather in ${data.name}, ${data.sys.country} is ${data.weather[0].description} with a temperature of ${tempF.toFixed(1)}°F, humidity of ${humidity}% and wind speed of ${windSpeed} m/s.`;
   } catch (error) {
     console.error("Weather API error:", error);
     return `Sorry, I couldn't retrieve the weather for "${city}".`;
   }
 };
+
+// Name recognition
+const isNameQuery = (text) =>
+  /what('| i)?s your name|who are you|tell me about yourself/i.test(text);
 
 app.post("/api/smart", async (req, res) => {
   const { prompt } = req.body;
@@ -57,6 +59,13 @@ app.post("/api/smart", async (req, res) => {
         const result = await fetchWeather(city);
         return res.json({ result });
       }
+    }
+
+    if (isNameQuery(prompt)) {
+      return res.json({
+        result:
+          "My name is Allie, short for Artificial Language Learning & Interaction Engine. I’m here to help you with whatever you need!",
+      });
     }
 
     const completion = await openai.chat.completions.create({
@@ -98,4 +107,3 @@ app.post("/api/transcribe", upload.single("file"), async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
