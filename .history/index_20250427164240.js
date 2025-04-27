@@ -15,25 +15,18 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 app.use(cors());
 app.use(express.json());
 
-// --- True New York Date Lock ---
-const getEasternDateParts = () => {
-  const eastern = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-
-  const year = eastern.getFullYear();
-  const month = eastern.getMonth() + 1; // 0-indexed
-  const day = eastern.getDate();
-
-  return { year, month, day };
+// --- Helper Functions ---
+const getEasternDate = () => {
+  const now = new Date();
+  return new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
 };
 
 const getNBAFormattedDate = (offsetDays = 0) => {
-  let { year, month, day } = getEasternDateParts();
+  const easternDate = getEasternDate();
+  easternDate.setDate(easternDate.getDate() + offsetDays);
 
-  const eastern = new Date(year, month - 1, day); // Correct base date
-  eastern.setDate(eastern.getDate() + offsetDays); // Shift if needed (yesterday = -1)
-
-  const formattedDate = `${eastern.getFullYear()}${(eastern.getMonth() + 1).toString().padStart(2, "0")}${eastern.getDate().toString().padStart(2, "0")}`;
-  const readableDate = eastern.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const formattedDate = `${easternDate.getFullYear()}${(easternDate.getMonth() + 1).toString().padStart(2, "0")}${easternDate.getDate().toString().padStart(2, "0")}`;
+  const readableDate = easternDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
   return { formattedDate, readableDate };
 };
@@ -113,11 +106,17 @@ const isNBAScheduleRequest = (text) => {
   return (
     lower.includes("nba schedule") ||
     lower.includes("nba games") ||
+    lower.includes("nba games scores") ||
+    lower.includes("what are the nba scores") ||
+    lower.includes("nba scores right now") ||
+    lower.includes("what are the nba scores right now") ||
+    lower.includes("what are the nba scores from last night") ||
+    lower.includes("nba") && lower.includes("yesterday") ||
+    lower.includes("nba") && lower.includes("scores") ||
+    lower.includes("nba") && lower.includes("games") ||
     lower.includes("nba scores") ||
-    lower.includes("nba today") ||
-    (lower.includes("nba") && lower.includes("yesterday")) ||
-    (lower.includes("nba") && lower.includes("scores")) ||
-    (lower.includes("nba") && lower.includes("games"))
+    lower.includes("nba yesterday") ||
+    lower.includes("nba today") 
   );
 };
 
@@ -241,7 +240,6 @@ app.post("/api/transcribe", upload.single("file"), async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
 
 
 
