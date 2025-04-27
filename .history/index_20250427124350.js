@@ -106,11 +106,10 @@ const isNBAScheduleRequest = (text) => {
     lower.includes("nba games") ||
     lower.includes("nba games scores") ||
     lower.includes("what are the nba scores") ||
-    lower.includes("nba scores right now") ||
     lower.includes("what are the nba scores right now") ||
     lower.includes("what are the nba scores from last night") ||
     lower.includes("nba scores") ||
-    lower.includes("nba today")
+    lower.includes("nba today")what are the 
   );
 };
 
