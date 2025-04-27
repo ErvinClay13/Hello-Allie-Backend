@@ -93,15 +93,10 @@ const isNBAScheduleRequest = (text) => {
     lower.includes("nba games scores") ||
     lower.includes("what are the nba scores") ||
     lower.includes("nba scores right now") ||
-    lower.includes("what are the nba scores right now") ||
     lower.includes("what are the nba scores from last night") ||
     lower.includes("nba scores") ||
     lower.includes("nba today")
   );
-};
-
-const isYesterdayNBARequest = (text) => {
-  return /yesterday/i.test(text);
 };
 
 const fetchNBASchedule = async (date) => {
@@ -168,14 +163,8 @@ app.post("/api/smart", async (req, res) => {
       const today = new Date();
       const easternToday = new Date(today.toLocaleString("en-US", { timeZone: "America/New_York" }));
 
-      let nbaDate = easternToday;
-      if (isYesterdayNBARequest(prompt)) {
-        nbaDate = new Date(easternToday);
-        nbaDate.setDate(easternToday.getDate() - 1);
-      }
-
-      const dateStr = `${nbaDate.getFullYear()}${(nbaDate.getMonth() + 1).toString().padStart(2, "0")}${nbaDate.getDate().toString().padStart(2, "0")}`;
-      const readableDate = nbaDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      const dateStr = `${easternToday.getFullYear()}${(easternToday.getMonth() + 1).toString().padStart(2, "0")}${easternToday.getDate().toString().padStart(2, "0")}`;
+      const readableDate = easternToday.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
       const games = await fetchNBASchedule(dateStr);
       return res.json({ result: `NBA games for ${readableDate}:\n${games}` });
@@ -229,6 +218,7 @@ app.post("/api/transcribe", upload.single("file"), async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 
 
