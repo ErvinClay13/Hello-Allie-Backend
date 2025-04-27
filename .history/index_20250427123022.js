@@ -17,14 +17,10 @@ app.use(express.json());
 
 // --- Weather API Functions ---
 const isWeatherRequest = (text) =>
-  /(weather|temperature|degrees|hot|cold|warm|rain|raining|snow|snowing) in ([a-zA-Z\s,]+)/i.test(
-    text
-  );
+  /(weather|temperature|degrees|hot ) in ([a-zA-Z\s,]+)/i.test(text);
 
 const extractCity = (text) => {
-  const match = text.match(
-    /(?:weather|temperature|degrees|hot|cold|warm|rain|raining|snow|snowing) in ([a-zA-Z\s,]+)/i
-  );
+  const match = text.match(/(?:weather|temperature|degrees) in ([a-zA-Z\s,]+)/i);
   return match ? match[1].trim() : null;
 };
 
@@ -52,13 +48,7 @@ const fetchWeather = async (city) => {
     const humidity = data.main.humidity;
     const windSpeedMph = data.wind.speed;
 
-    return `The current weather in ${data.name}, ${data.sys.country} is ${
-      data.weather[0].description
-    } with a temperature of ${tempF.toFixed(
-      1
-    )}°F, humidity of ${humidity}% and wind speed of ${windSpeedMph.toFixed(
-      1
-    )} mph.`;
+    return `The current weather in ${data.name}, ${data.sys.country} is ${data.weather[0].description} with a temperature of ${tempF.toFixed(1)}°F, humidity of ${humidity}% and wind speed of ${windSpeedMph.toFixed(1)} mph.`;
   } catch (error) {
     console.error("❌ Weather API error:", error);
     return `Sorry, I couldn't retrieve the weather for "${city}".`;
@@ -71,18 +61,16 @@ const isNameQuery = (text) =>
 
 // --- Dad Joke API ---
 const isDadJokeRequest = (text) =>
-  /(tell me a joke|dad joke|make me laugh|joke|say something funny)/i.test(
-    text
-  );
+  /(tell me a joke|dad joke|make me laugh|joke|say something funny)/i.test(text);
 
 const fetchDadJoke = async () => {
   try {
     const options = {
-      method: "GET",
-      url: "https://dad-jokes-by-api-ninjas.p.rapidapi.com/v1/dadjokes",
+      method: 'GET',
+      url: 'https://dad-jokes-by-api-ninjas.p.rapidapi.com/v1/dadjokes',
       headers: {
-        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-        "X-RapidAPI-Host": "dad-jokes-by-api-ninjas.p.rapidapi.com",
+        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+        'X-RapidAPI-Host': 'dad-jokes-by-api-ninjas.p.rapidapi.com',
       },
     };
 
@@ -104,9 +92,6 @@ const isNBAScheduleRequest = (text) => {
   return (
     lower.includes("nba schedule") ||
     lower.includes("nba games") ||
-    lower.includes("nba games scores") ||
-    lower.includes("what are the nba scores") ||
-    lower.includes("what are the nba scores right now") ||
     lower.includes("nba today")
   );
 };
@@ -114,12 +99,12 @@ const isNBAScheduleRequest = (text) => {
 const fetchNBASchedule = async (date) => {
   try {
     const options = {
-      method: "GET",
-      url: "https://nba-api-free-data.p.rapidapi.com/nba-schedule-by-date",
+      method: 'GET',
+      url: 'https://nba-api-free-data.p.rapidapi.com/nba-schedule-by-date',
       params: { date },
       headers: {
-        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-        "X-RapidAPI-Host": "nba-api-free-data.p.rapidapi.com",
+        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+        'X-RapidAPI-Host': 'nba-api-free-data.p.rapidapi.com',
       },
     };
 
@@ -131,22 +116,15 @@ const fetchNBASchedule = async (date) => {
       return `No NBA games found for that date.`;
     }
 
-    const gameSummaries = events
-      .map((event) => {
-        const homeTeam =
-          event.competitors.find((c) => c.isHome)?.shortDisplayName ||
-          "Home Team";
-        const awayTeam =
-          event.competitors.find((c) => !c.isHome)?.shortDisplayName ||
-          "Away Team";
-        const homeScore = event.competitors.find((c) => c.isHome)?.score ?? "0";
-        const awayScore =
-          event.competitors.find((c) => !c.isHome)?.score ?? "0";
-        const status = event.status?.detail || "Scheduled";
+    const gameSummaries = events.map((event) => {
+      const homeTeam = event.competitors.find(c => c.isHome)?.shortDisplayName || "Home Team";
+      const awayTeam = event.competitors.find(c => !c.isHome)?.shortDisplayName || "Away Team";
+      const homeScore = event.competitors.find(c => c.isHome)?.score ?? "0";
+      const awayScore = event.competitors.find(c => !c.isHome)?.score ?? "0";
+      const status = event.status?.detail || "Scheduled";
 
-        return `${awayTeam} (${awayScore}) vs ${homeTeam} (${homeScore}) - ${status}`;
-      })
-      .join("\n");
+      return `${awayTeam} (${awayScore}) vs ${homeTeam} (${homeScore}) - ${status}`;
+    }).join("\n");
 
     return `NBA games for ${date}:\n${gameSummaries}`;
   } catch (error) {
@@ -231,6 +209,18 @@ app.post("/api/transcribe", upload.single("file"), async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+
+
+
+
+
+
+
+
+
+
+
 
 // const express = require("express");
 // const cors = require("cors");
@@ -386,6 +376,20 @@ app.listen(PORT, () => {
 // app.listen(PORT, () => {
 //   console.log(`Server running on port ${PORT}`);
 // });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // const express = require("express");
 // const cors = require("cors");
