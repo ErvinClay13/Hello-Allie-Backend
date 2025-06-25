@@ -196,12 +196,9 @@ app.post("/api/smart", async (req, res) => {
     };
 
     const wrapper = personalityPrompts[personality?.toLowerCase()] || "";
+    const smartPrompt = `${wrapper}\n\nUser: ${prompt}\nAllie:`;
 
-    const messages = [
-      { role: "system", content: wrapper },
-      ...conversationHistory.map((entry) => ({ role: entry.role, content: entry.content })),
-      { role: "user", content: prompt },
-    ];
+    const messages = [...conversationHistory.map(entry => ({ role: entry.role, content: entry.content })), { role: "user", content: smartPrompt }];
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4",
