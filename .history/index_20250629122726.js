@@ -224,6 +224,7 @@ app.post("/api/schedule", async (req, res) => {
   try {
     // const taskMatch = prompt.match(/remind me to (.+?)(?: at|$)/i);
     const taskMatch = prompt.match(/(?:remind me to|schedule) (.+?)(?: at|$)/i);
+
     const timeMatch = prompt.match(/at ([0-9]{1,2}(?::[0-9]{2})?\s?(?:am|pm)?)/i);
     const dateMatch = prompt.match(/(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
 
