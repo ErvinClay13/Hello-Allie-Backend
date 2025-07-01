@@ -1,256 +1,27 @@
-// === 📁 index.js (FULL CLEAN VERSION) ===
-
-const express = require("express");
-const cors = require("cors");
-const dotenv = require("dotenv");
-const { OpenAI } = require("openai");
-const multer = require("multer");
-const fs = require("fs");
-const axios = require("axios");
-const db = require("./config/firebaseAdmin.js");
-
-dotenv.config();
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-app.use(cors());
-app.use(express.json());
-
-// === 🕒 Utility: Local Time ===
-const fetchLocalTimeByIP = async () => {
+const sendSchedulePrompt = async (prompt) => {
   try {
-    const response = await axios.get(`https://api.ipgeolocation.io/timezone?apiKey=${process.env.IPGEOLOCATION_API_KEY}`);
-    const { date_time_txt, timezone, geo } = response.data;
-    return `The current local time is ${date_time_txt} in ${geo.city}, ${geo.country_name} (${timezone}).`;
-  } catch (error) {
-    console.error("❌ World Time API error:", error);
-    return "Sorry, I couldn't fetch the current local time.";
-  }
-};
-
-// === 🏀 Utility: NBA Scores ===
-const getNBAFormattedDate = (offsetDays = 0) => {
-  const easternNow = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  easternNow.setDate(easternNow.getDate() + offsetDays);
-  const formattedDate = `${easternNow.getFullYear()}${(easternNow.getMonth() + 1).toString().padStart(2, "0")}${easternNow.getDate().toString().padStart(2, "0")}`;
-  const readableDate = easternNow.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  return { formattedDate, readableDate };
-};
-
-const isNBAScheduleRequest = (text) => /nba schedule|nba games|nba scores|nba today|nba yesterday|nba right now|whose winning right now|nba playoffs|nba 2 days ago/i.test(text);
-const detectNBADateOffset = (text) => text.includes("2 days ago") ? -2 : text.includes("yesterday") ? -1 : 0;
-
-const fetchNBAScoreboard = async (date) => {
-  try {
-    const options = {
-      method: "GET",
-      url: "https://nba-api-free-data.p.rapidapi.com/nba-scoreboard-by-date",
-      params: { date },
-      headers: {
-        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-        "X-RapidAPI-Host": "nba-api-free-data.p.rapidapi.com",
-      },
-    };
-    const response = await axios.request(options);
-    const events = response.data?.response?.Events || [];
-    if (events.length === 0) return `No NBA games found for that date.`;
-
-    const liveGames = [], finalGames = [], scheduledGames = [];
-    for (const event of events) {
-      const competitors = event.competitions?.competitors || [];
-      const home = competitors.find(c => c.homeAway === "home");
-      const away = competitors.find(c => c.homeAway === "away");
-      const homeName = home?.team?.displayName || "Home Team";
-      const homeScore = home?.score ?? "0";
-      const awayName = away?.team?.displayName || "Away Team";
-      const awayScore = away?.score ?? "0";
-      const gameStatus = event.status?.type?.name || "STATUS_SCHEDULED";
-      const clock = event.status?.displayClock || "";
-      const period = event.status?.period || "";
-      let gameLine = `${awayName} ${awayScore} - ${homeScore} ${homeName}`;
-      if (gameStatus === "STATUS_IN_PROGRESS") {
-        gameLine += ` (LIVE Q${period} ${clock})`;
-        liveGames.push(gameLine);
-      } else if (gameStatus === "STATUS_FINAL") {
-        gameLine += ` (Final)`;
-        finalGames.push(gameLine);
-      } else {
-        gameLine += ` (Scheduled)`;
-        scheduledGames.push(gameLine);
-      }
-    }
-
-    let output = "";
-    if (liveGames.length > 0) output += `LIVE NOW:\n${liveGames.join("\n")}\n\n`;
-    if (finalGames.length > 0) output += `FINAL SCORES:\n${finalGames.join("\n")}\n\n`;
-    if (scheduledGames.length > 0) output += `UPCOMING GAMES:\n${scheduledGames.join("\n")}`;
-    return output.trim();
-  } catch (error) {
-    console.error("❌ NBA Scoreboard API error:", error);
-    return "Failed to fetch NBA live scores.";
-  }
-};
-
-// === 🌦️ Utility: Weather ===
-const isWeatherRequest = (text) => /(weather|temperature|degrees|hot|cold|warm|rain|raining|snow|snowing) in ([a-zA-Z\s,]+)/i.test(text);
-const extractCity = (text) => text.match(/(?:weather|temperature|degrees|hot|cold|warm|rain|raining|snow|snowing) in ([a-zA-Z\s,]+)/i)?.[1]?.trim();
-
-const fetchWeather = async (city) => {
-  try {
-    const formattedCity = city.replace(/,/g, "").split(" ")[0];
-    const url = `https://open-weather13.p.rapidapi.com/city/${formattedCity}/US?units=imperial`;
-    const response = await axios.get(url, {
-      headers: {
-        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-        "X-RapidAPI-Host": "open-weather13.p.rapidapi.com",
-      },
+    const res = await fetch("https://your-backend-url/api/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
     });
-    const data = response.data;
-    const tempF = data.main.temp;
-    const humidity = data.main.humidity;
-    const windSpeedMph = data.wind.speed;
-    return `The current weather in ${data.name}, ${data.sys.country} is ${data.weather[0].description} with a temperature of ${tempF.toFixed(1)}°F, humidity of ${humidity}% and wind speed of ${windSpeedMph.toFixed(1)} mph.`;
-  } catch (error) {
-    console.error("❌ Weather API error:", error);
-    return `Sorry, I couldn't retrieve the weather for "${city}".`;
-  }
-};
+    const data = await res.json();
 
-// === 🤖 Utility: Dad Jokes ===
-const isDadJokeRequest = (text) => /(tell me a joke|dad joke|make me laugh|joke|say something funny)/i.test(text);
-const fetchDadJoke = async () => {
-  try {
-    const response = await axios.get("https://dad-jokes-by-api-ninjas.p.rapidapi.com/v1/dadjokes", {
-      headers: {
-        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-        "X-RapidAPI-Host": "dad-jokes-by-api-ninjas.p.rapidapi.com",
-      },
-    });
-    return response.data?.[0]?.joke || "Couldn't find a dad joke right now, sorry!";
-  } catch (error) {
-    console.error("❌ Dad Joke API error:", error);
-    return "Failed to fetch a dad joke.";
-  }
-};
-
-// === 💬 Smart AI route ===
-app.post("/api/smart", async (req, res) => {
-  const { prompt, conversationHistory = [], mode } = req.body;
-
-  try {
-    if (/what('| i)?s the time|what('| i)?s the date|current time|current date|local time/i.test(prompt)) {
-      return res.json({ result: await fetchLocalTimeByIP() });
-    }
-
-    if (isWeatherRequest(prompt)) {
-      const city = extractCity(prompt);
-      if (city) return res.json({ result: await fetchWeather(city) });
-    }
-
-    if (isDadJokeRequest(prompt)) {
-      return res.json({ result: await fetchDadJoke() });
-    }
-
-    if (isNBAScheduleRequest(prompt)) {
-      const offset = detectNBADateOffset(prompt);
-      const { formattedDate, readableDate } = getNBAFormattedDate(offset);
-      const games = await fetchNBAScoreboard(formattedDate);
-      return res.json({ result: `NBA games for ${readableDate}:\n\n${games}` });
-    }
-
-    const messages = [
-      { role: "system", content: `You are Allie, an AI assistant in ${mode || "friendly"} mode.` },
-      ...conversationHistory.map(entry => ({ role: entry.role, content: entry.content })),
-      { role: "user", content: prompt },
-    ];
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages,
-      temperature: 0.8,
-    });
-
-    res.json({ result: completion.choices[0].message.content.trim() });
-  } catch (error) {
-    console.error("Smart AI Error:", error.message || error);
-    res.status(500).json({ error: "Smart AI failed" });
-  }
-});
-
-// === 🔊 Whisper Transcription ===
-const upload = multer({ dest: "uploads/" });
-app.post("/api/transcribe", upload.single("file"), async (req, res) => {
-  try {
-    const file = req.file;
-    if (!file) return res.status(400).json({ error: "No audio file uploaded" });
-
-    const newPath = `${file.path}.mp3`;
-    fs.renameSync(file.path, newPath);
-
-    const transcription = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(newPath),
-      model: "whisper-1",
-    });
-
-    fs.unlinkSync(newPath);
-    res.json({ text: transcription.text });
-  } catch (error) {
-    const message = error?.response?.data || error.message;
-    console.error("Whisper transcription error:", message);
-    res.status(500).json({ error: "Failed to transcribe audio" });
-  }
-});
-
-// === 📅 Scheduling (Add, View, Delete, Clear) ===
-app.post("/api/schedule", async (req, res) => {
-  const { prompt } = req.body;
-  if (!prompt) return res.status(400).json({ error: "Prompt is required" });
-
-  try {
-    const addMatch = prompt.match(/(?:remind me to|schedule|add)\s(.+?)\s(?:at\s)?([0-9]{1,2}(?::[0-9]{2})?\s?(?:am|pm)?)\s?(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)?/i);
-    const deleteMatch = prompt.match(/delete\s(.+?)(?:\s|$)/i);
-    const viewMatch = /what('| i)?s on my schedule|show my schedule|my calendar/i.test(prompt);
-    const clearMatch = /clear (my )?schedule/i.test(prompt);
-
-    if (addMatch) {
-      const task = addMatch[1].trim();
-      const time = addMatch[2].trim();
-      const date = addMatch[3]?.trim() || "unspecified";
-
-      const docRef = await db.collection("schedules").add({
-        task, date, time, createdAt: new Date(),
-      });
-      return res.status(200).json({ message: `Added "${task}" at ${time} on ${date}.`, id: docRef.id });
-    } else if (deleteMatch) {
-      const taskToDelete = deleteMatch[1].trim();
-      const snapshot = await db.collection("schedules").where("task", "==", taskToDelete).get();
-      if (snapshot.empty) {
-        return res.status(404).json({ message: `No event found for "${taskToDelete}".` });
-      }
-      await Promise.all(snapshot.docs.map(doc => doc.ref.delete()));
-      return res.status(200).json({ message: `Deleted "${taskToDelete}" from your schedule.` });
-    } else if (viewMatch) {
-      const snapshot = await db.collection("schedules").orderBy("createdAt", "desc").get();
-      const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      return res.status(200).json({ events });
-    } else if (clearMatch) {
-      const snapshot = await db.collection("schedules").get();
-      await Promise.all(snapshot.docs.map(doc => doc.ref.delete()));
-      return res.status(200).json({ message: "All events cleared from your schedule." });
+    if (data.message && data.id) {
+      return `✅ Event saved: ${prompt}`;
+    } else if (data.events) {
+      const eventList = data.events
+        .map(event => `${event.task} at ${event.time} on ${event.date}`)
+        .join("\n");
+      return `Here are your upcoming events:\n\n${eventList}`;
     } else {
-      return res.status(200).json({ message: "Could not parse scheduling command" });
+      return data.message || "Sorry, I couldn't update your schedule.";
     }
   } catch (error) {
-    console.error("Schedule API error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Schedule Fetch Error:", error);
+    return "Sorry, scheduling failed.";
   }
-});
-
-// === 🚀 Start Server ===
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
+};
 
 
 
