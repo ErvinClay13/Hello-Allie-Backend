@@ -23,9 +23,7 @@ const upload = multer({ dest: "uploads/" });
 
 const fetchLocalTimeByIP = async () => {
   try {
-    const response = await axios.get(
-      `https://api.ipgeolocation.io/timezone?apiKey=${process.env.IPGEOLOCATION_API_KEY}`
-    );
+    const response = await axios.get(`https://api.ipgeolocation.io/timezone?apiKey=${process.env.IPGEOLOCATION_API_KEY}`);
     const { date_time_txt, timezone, geo } = response.data;
     return `The current local time is ${date_time_txt} in ${geo.city}, ${geo.country_name} (${timezone}).`;
   } catch (error) {
@@ -35,29 +33,15 @@ const fetchLocalTimeByIP = async () => {
 };
 
 const getNBAFormattedDate = (offsetDays = 0) => {
-  const easternNow = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
-  );
+  const easternNow = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
   easternNow.setDate(easternNow.getDate() + offsetDays);
-  const formattedDate = `${easternNow.getFullYear()}${(
-    easternNow.getMonth() + 1
-  )
-    .toString()
-    .padStart(2, "0")}${easternNow.getDate().toString().padStart(2, "0")}`;
-  const readableDate = easternNow.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const formattedDate = `${easternNow.getFullYear()}${(easternNow.getMonth() + 1).toString().padStart(2, "0")}${easternNow.getDate().toString().padStart(2, "0")}`;
+  const readableDate = easternNow.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   return { formattedDate, readableDate };
 };
 
-const isNBAScheduleRequest = (text) =>
-  /nba schedule|nba games|nba scores|nba today|nba yesterday|nba right now|whose winning right now|nba playoffs|nba 2 days ago/i.test(
-    text
-  );
-const detectNBADateOffset = (text) =>
-  text.includes("2 days ago") ? -2 : text.includes("yesterday") ? -1 : 0;
+const isNBAScheduleRequest = (text) => /nba schedule|nba games|nba scores|nba today|nba yesterday|nba right now|whose winning right now|nba playoffs|nba 2 days ago/i.test(text);
+const detectNBADateOffset = (text) => text.includes("2 days ago") ? -2 : text.includes("yesterday") ? -1 : 0;
 
 const fetchNBAScoreboard = async (date) => {
   try {
@@ -74,13 +58,11 @@ const fetchNBAScoreboard = async (date) => {
     const events = response.data?.response?.Events || [];
     if (events.length === 0) return `No NBA games found for that date.`;
 
-    const liveGames = [],
-      finalGames = [],
-      scheduledGames = [];
+    const liveGames = [], finalGames = [], scheduledGames = [];
     for (const event of events) {
       const competitors = event.competitions?.competitors || [];
-      const home = competitors.find((c) => c.homeAway === "home");
-      const away = competitors.find((c) => c.homeAway === "away");
+      const home = competitors.find(c => c.homeAway === "home");
+      const away = competitors.find(c => c.homeAway === "away");
       const homeName = home?.team?.displayName || "Home Team";
       const homeScore = home?.score ?? "0";
       const awayName = away?.team?.displayName || "Away Team";
@@ -102,18 +84,9 @@ const fetchNBAScoreboard = async (date) => {
     }
 
     let output = "";
-    if (liveGames.length > 0)
-      output += `🔴 LIVE NOW (${liveGames.length}):\n${liveGames.join(
-        "\n"
-      )}\n\n`;
-    if (finalGames.length > 0)
-      output += `🏁 FINAL SCORES (${finalGames.length}):\n${finalGames.join(
-        "\n"
-      )}\n\n`;
-    if (scheduledGames.length > 0)
-      output += `🕒 UPCOMING GAMES (${
-        scheduledGames.length
-      }):\n${scheduledGames.join("\n")}`;
+    if (liveGames.length > 0) output += `🔴 LIVE NOW (${liveGames.length}):\n${liveGames.join("\n")}\n\n`;
+    if (finalGames.length > 0) output += `🏁 FINAL SCORES (${finalGames.length}):\n${finalGames.join("\n")}\n\n`;
+    if (scheduledGames.length > 0) output += `🕒 UPCOMING GAMES (${scheduledGames.length}):\n${scheduledGames.join("\n")}`;
     return output.trim();
   } catch (error) {
     console.error("NBA Scoreboard API error:", error);
@@ -121,16 +94,8 @@ const fetchNBAScoreboard = async (date) => {
   }
 };
 
-const isWeatherRequest = (text) =>
-  /(weather|temperature|degrees|hot|cold|warm|rain|raining|snow|snowing) in ([a-zA-Z\s,]+)/i.test(
-    text
-  );
-const extractCity = (text) =>
-  text
-    .match(
-      /(?:weather|temperature|degrees|hot|cold|warm|rain|raining|snow|snowing) in ([a-zA-Z\s,]+)/i
-    )?.[1]
-    ?.trim();
+const isWeatherRequest = (text) => /(weather|temperature|degrees|hot|cold|warm|rain|raining|snow|snowing) in ([a-zA-Z\s,]+)/i.test(text);
+const extractCity = (text) => text.match(/(?:weather|temperature|degrees|hot|cold|warm|rain|raining|snow|snowing) in ([a-zA-Z\s,]+)/i)?.[1]?.trim();
 
 const fetchWeather = async (city) => {
   try {
@@ -146,38 +111,25 @@ const fetchWeather = async (city) => {
     const tempF = data.main.temp;
     const humidity = data.main.humidity;
     const windSpeedMph = data.wind.speed;
-    return `The weather in ${data.name}, ${data.sys.country} is ${
-      data.weather[0].description
-    }, ${tempF.toFixed(
-      1
-    )}°F, humidity ${humidity}%, wind ${windSpeedMph.toFixed(1)} mph.`;
+    return `The weather in ${data.name}, ${data.sys.country} is ${data.weather[0].description}, ${tempF.toFixed(1)}°F, humidity ${humidity}%, wind ${windSpeedMph.toFixed(1)} mph.`;
   } catch (error) {
     console.error("Weather API error:", error);
     return `Sorry, I couldn't get the weather for "${city}".`;
   }
 };
 
-const isNameQuery = (text) =>
-  /what('| i)?s your name|who are you|tell me about yourself/i.test(text);
-const isDadJokeRequest = (text) =>
-  /(tell me a joke|dad joke|make me laugh|joke|say something funny)/i.test(
-    text
-  );
+const isNameQuery = (text) => /what('| i)?s your name|who are you|tell me about yourself/i.test(text);
+const isDadJokeRequest = (text) => /(tell me a joke|dad joke|make me laugh|joke|say something funny)/i.test(text);
 
 const fetchDadJoke = async () => {
   try {
-    const response = await axios.get(
-      "https://dad-jokes-by-api-ninjas.p.rapidapi.com/v1/dadjokes",
-      {
-        headers: {
-          "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-          "X-RapidAPI-Host": "dad-jokes-by-api-ninjas.p.rapidapi.com",
-        },
-      }
-    );
-    return (
-      response.data?.[0]?.joke || "Couldn't find a dad joke right now, sorry!"
-    );
+    const response = await axios.get("https://dad-jokes-by-api-ninjas.p.rapidapi.com/v1/dadjokes", {
+      headers: {
+        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+        "X-RapidAPI-Host": "dad-jokes-by-api-ninjas.p.rapidapi.com",
+      },
+    });
+    return response.data?.[0]?.joke || "Couldn't find a dad joke right now, sorry!";
   } catch (error) {
     console.error("Dad Joke API error:", error);
     return "Failed to fetch a dad joke.";
@@ -192,16 +144,12 @@ app.post("/api/smart", async (req, res) => {
     friendly: "You are Allie, a warm and kind assistant.",
     sassy: "You are Allie, a witty, sassy assistant.",
     motivational: "You are Allie, a motivational coach.",
-    humorous: "You are Allie, a funny assistant.",
+    humorous: "You are Allie, a funny assistant."
   };
   const personalityKey = (personality || mode || "friendly").toLowerCase();
 
   try {
-    if (
-      /what('| i)?s the time|what('| i)?s the date|current time|current date|local time/i.test(
-        prompt
-      )
-    ) {
+    if (/what('| i)?s the time|what('| i)?s the date|current time|current date|local time/i.test(prompt)) {
       return res.json({ result: await fetchLocalTimeByIP() });
     }
     if (isWeatherRequest(prompt)) {
@@ -209,10 +157,7 @@ app.post("/api/smart", async (req, res) => {
       if (city) return res.json({ result: await fetchWeather(city) });
     }
     if (isNameQuery(prompt)) {
-      return res.json({
-        result:
-          "My name is Allie, short for Artificial Language Learning & Interaction Engine. I’m here to help you with whatever you need!",
-      });
+      return res.json({ result: "My name is Allie, short for Artificial Language Learning & Interaction Engine. I’m here to help you with whatever you need!" });
     }
     if (isDadJokeRequest(prompt)) {
       return res.json({ result: await fetchDadJoke() });
@@ -225,15 +170,8 @@ app.post("/api/smart", async (req, res) => {
     }
 
     const messages = [
-      {
-        role: "system",
-        content:
-          personalityPrompts[personalityKey] || personalityPrompts.friendly,
-      },
-      ...conversationHistory.map((entry) => ({
-        role: entry.role,
-        content: entry.content,
-      })),
+      { role: "system", content: personalityPrompts[personalityKey] || personalityPrompts.friendly },
+      ...conversationHistory.map(entry => ({ role: entry.role, content: entry.content })),
       { role: "user", content: prompt },
     ];
 
@@ -268,10 +206,7 @@ app.post("/api/transcribe", upload.single("file"), async (req, res) => {
     fs.unlinkSync(newPath);
     res.json({ text: transcription.text });
   } catch (error) {
-    console.error(
-      "Whisper transcription error:",
-      error?.response?.data || error.message
-    );
+    console.error("Whisper transcription error:", error?.response?.data || error.message);
     res.status(500).json({ error: "Failed to transcribe audio" });
   }
 });
@@ -287,55 +222,32 @@ app.post("/api/schedule", async (req, res) => {
 
     // Delete task
     if (lowerPrompt.includes("delete") || lowerPrompt.includes("remove")) {
-      const deleteTaskMatch = prompt.match(
-        /(?:delete|remove)\s(.+?)(?:\sfrom|\s(in|on)\s.*|$)/i
-      );
+      const deleteTaskMatch = prompt.match(/(?:delete|remove)\s(.+?)(?:\sfrom|\s(in|on)\s.*|$)/i);
       const deleteTask = deleteTaskMatch ? deleteTaskMatch[1].trim() : null;
 
       if (deleteTask) {
-        const snapshot = await db
-          .collection("schedules")
-          .where("task", "==", deleteTask)
-          .get();
-        if (snapshot.empty)
-          return res.json({ message: `No event found for "${deleteTask}".` });
-        snapshot.forEach((doc) => doc.ref.delete());
-        return res.json({
-          message: `Deleted "${deleteTask}" from your schedule.`,
-        });
+        const snapshot = await db.collection("schedules").where("task", "==", deleteTask).get();
+        if (snapshot.empty) return res.json({ message: `No event found for "${deleteTask}".` });
+        snapshot.forEach(doc => doc.ref.delete());
+        return res.json({ message: `Deleted "${deleteTask}" from your schedule.` });
       } else {
-        return res.json({
-          message: "Please specify what to delete from your schedule.",
-        });
+        return res.json({ message: "Please specify what to delete from your schedule." });
       }
     }
 
     // Add task with chrono
     const parsed = chrono.parse(prompt);
-    if (parsed.length === 0)
-      return res.json({ message: "Could not parse date or time." });
+    if (parsed.length === 0) return res.json({ message: "Could not parse date or time." });
 
     const dateObj = parsed[0].start.date();
-    const formattedTime = dateObj.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-    const formattedDate = dateObj.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
+    const formattedTime = dateObj.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    const formattedDate = dateObj.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
-    let task = prompt
-      .replace(/remind me to|remind me|schedule|add to calendar/gi, "")
-      .replace(/at .*/i, "")
-      .replace(/on .*/i, "")
-      .replace(
-        /tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday/gi,
-        ""
-      )
-      .trim();
+    let task = prompt.replace(/remind me to|remind me|schedule|add to calendar/gi, "")
+                     .replace(/at .*/i, "")
+                     .replace(/on .*/i, "")
+                     .replace(/tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday/gi, "")
+                     .trim();
     if (!task) task = "No task specified";
 
     const docRef = await db.collection("schedules").add({
@@ -345,9 +257,8 @@ app.post("/api/schedule", async (req, res) => {
       createdAt: new Date(),
     });
 
-    res.json({
-      message: `Added "${task}" at ${formattedTime} on ${formattedDate} to your schedule.`,
-    });
+    res.json({ message: `Added "${task}" at ${formattedTime} on ${formattedDate} to your schedule.` });
+
   } catch (error) {
     console.error("Schedule API error:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -357,11 +268,6 @@ app.post("/api/schedule", async (req, res) => {
 /** ---------------- Server ---------------- **/
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-
-
-
-
 
 
 
@@ -652,6 +558,16 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 //   console.log(`Server running on port ${PORT}`);
 // });
 
+
+
+
+
+
+
+
+
+
+
 // // === ✅ Imports ===
 // const express = require("express");
 // const cors = require("cors");
@@ -934,6 +850,15 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 //   console.log(`Server running on port ${PORT}`);
 // });
 
+
+
+
+
+
+
+
+
+
 //6/29/2025
 // const express = require("express");
 // const cors = require("cors");
@@ -1195,6 +1120,15 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 //   console.log(`Server running on port ${PORT}`);
 // });
 
+
+
+
+
+
+
+
+
+
 // const express = require("express");
 // const cors = require("cors");
 // const dotenv = require("dotenv");
@@ -1453,8 +1387,20 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 //   console.log(`Server running on port ${PORT}`);
 // });
 
+
+
+
+
+
+
+
+
+
+
+
 //6/28/25
 // import db from "./config/firebaseAdmin.js";
+
 
 // const express = require("express");
 // const cors = require("cors");
@@ -1674,6 +1620,12 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 //   console.log(`Server running on port ${PORT}`);
 // });
 
+
+
+
+
+
+
 //06/24/25
 // const express = require("express");
 // const cors = require("cors");
@@ -1696,7 +1648,7 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 // const fetchLocalTimeByIP = async () => {
 //   try {
 //     const response = await axios.get(`https://api.ipgeolocation.io/timezone?apiKey=${process.env.IPGEOLOCATION_API_KEY}`);
-
+    
 //     const { date_time_txt, timezone, geo } = response.data;
 
 //     return `The current local time is ${date_time_txt} in ${geo.city}, ${geo.country_name} (${timezone}).`;
@@ -1973,6 +1925,14 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 // app.listen(PORT, () => {
 //   console.log(`Server running on port ${PORT}`);
 // });
+
+
+
+
+
+
+
+
 
 // const express = require("express");
 // const cors = require("cors");
