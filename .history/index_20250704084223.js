@@ -343,51 +343,50 @@ app.post("/api/schedule/delete", async (req, res) => {
   const { prompt, id } = req.body;
 
   try {
-    // 🔍 If specific ID is provided, delete immediately
     if (id) {
-      console.log("Deleting by ID:", id); // DEBUG LOG
       await db.collection("schedules").doc(id).delete();
       return res.json({ message: "Event deleted successfully." });
     }
 
-    // 🔍 If no prompt, return error
     if (!prompt) {
-      return res.status(400).json({ error: "Prompt or id is required to delete an event." });
+      return res
+        .status(400)
+        .json({ error: "Prompt or id is required to delete an event." });
     }
 
-    // 🔍 Fetch all events
     const snapshot = await db.collection("schedules").get();
     const events = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-    // 🔍 Extract keyword from prompt, removing "delete" or "remove"
     let keyword = prompt.trim().toLowerCase();
-    keyword = keyword.replace(/^delete\s*/i, "").replace(/^remove\s*/i, "").trim();
+    keyword = keyword
+      .replace(/^delete\s*/i, "")
+      .replace(/^remove\s*/i, "")
+      .trim();
 
-    // 🔍 Filter matching events
-    const matches = events.filter((event) => event.task_lower.includes(keyword));
+    const matches = events.filter((event) =>
+      event.task_lower.includes(keyword)
+    );
 
-    // 🔍 No matches found
     if (matches.length === 0) {
       return res.json({ message: `No events found containing "${keyword}".` });
-    }
-
-    // 🔍 One match found - delete immediately
-    if (matches.length === 1) {
-      console.log("Deleting single match ID:", matches[0].id); // DEBUG LOG
+    } else if (matches.length === 1) {
       const docRef = db.collection("schedules").doc(matches[0].id);
       await docRef.delete();
       return res.json({ message: `Deleted "${matches[0].task}".` });
+    } else {
+      const list = matches
+        .map(
+          (event, i) =>
+            `${i + 1}. ${event.task} at ${event.time} on ${event.date} (ID: ${
+              event.id
+            })`
+        )
+        .join("\n");
+      return res.json({
+        message: `I found multiple matches:\n\n${list}\n\nPlease say the number of the event you want to delete.`,
+        options: matches, // ✅ Added options array for frontend number selection
+      });
     }
-
-    // 🔍 Multiple matches found - return numbered list (no IDs spoken)
-    const list = matches
-      .map((event, i) => `${i + 1}. ${event.task} at ${event.time} on ${event.date}`)
-      .join("\n");
-
-    return res.json({
-      message: `I found multiple matches:\n\n${list}\n\nPlease say the number of the event you want to delete.`,
-      options: matches, // ✅ Return options for frontend selection
-    });
   } catch (error) {
     console.error("Schedule Delete API error:", error);
     res.status(500).json({ error: "Internal server error" });
