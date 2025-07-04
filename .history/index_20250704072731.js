@@ -20,9 +20,7 @@ app.use(express.json());
 
 const fetchLocalTimeByIP = async () => {
   try {
-    const response = await axios.get(
-      `https://api.ipgeolocation.io/timezone?apiKey=${process.env.IPGEOLOCATION_API_KEY}`
-    );
+    const response = await axios.get(`https://api.ipgeolocation.io/timezone?apiKey=${process.env.IPGEOLOCATION_API_KEY}`);
     const { date_time_txt, timezone, geo } = response.data;
     return `The current local time is ${date_time_txt} in ${geo.city}, ${geo.country_name} (${timezone}).`;
   } catch (error) {
@@ -32,29 +30,15 @@ const fetchLocalTimeByIP = async () => {
 };
 
 const getNBAFormattedDate = (offsetDays = 0) => {
-  const easternNow = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
-  );
+  const easternNow = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
   easternNow.setDate(easternNow.getDate() + offsetDays);
-  const formattedDate = `${easternNow.getFullYear()}${(
-    easternNow.getMonth() + 1
-  )
-    .toString()
-    .padStart(2, "0")}${easternNow.getDate().toString().padStart(2, "0")}`;
-  const readableDate = easternNow.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const formattedDate = `${easternNow.getFullYear()}${(easternNow.getMonth() + 1).toString().padStart(2, "0")}${easternNow.getDate().toString().padStart(2, "0")}`;
+  const readableDate = easternNow.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   return { formattedDate, readableDate };
 };
 
-const isNBAScheduleRequest = (text) =>
-  /nba schedule|nba games|nba scores|nba today|nba yesterday|nba right now|who's winning right now|nba playoffs|nba 2 days ago/i.test(
-    text
-  );
-const detectNBADateOffset = (text) =>
-  text.includes("2 days ago") ? -2 : text.includes("yesterday") ? -1 : 0;
+const isNBAScheduleRequest = (text) => /nba schedule|nba games|nba scores|nba today|nba yesterday|nba right now|who's winning right now|nba playoffs|nba 2 days ago/i.test(text);
+const detectNBADateOffset = (text) => text.includes("2 days ago") ? -2 : text.includes("yesterday") ? -1 : 0;
 
 const fetchNBAScoreboard = async (date) => {
   try {
@@ -71,13 +55,11 @@ const fetchNBAScoreboard = async (date) => {
     const events = response.data?.response?.Events || [];
     if (events.length === 0) return `No NBA games found for that date.`;
 
-    const liveGames = [],
-      finalGames = [],
-      scheduledGames = [];
+    const liveGames = [], finalGames = [], scheduledGames = [];
     for (const event of events) {
       const competitors = event.competitions?.competitors || [];
-      const home = competitors.find((c) => c.homeAway === "home");
-      const away = competitors.find((c) => c.homeAway === "away");
+      const home = competitors.find(c => c.homeAway === "home");
+      const away = competitors.find(c => c.homeAway === "away");
       const homeName = home?.team?.displayName || "Home Team";
       const homeScore = home?.score ?? "0";
       const awayName = away?.team?.displayName || "Away Team";
@@ -99,18 +81,9 @@ const fetchNBAScoreboard = async (date) => {
     }
 
     let output = "";
-    if (liveGames.length > 0)
-      output += `🔴 LIVE NOW (${liveGames.length}):\n${liveGames.join(
-        "\n"
-      )}\n\n`;
-    if (finalGames.length > 0)
-      output += `🏁 FINAL SCORES (${finalGames.length}):\n${finalGames.join(
-        "\n"
-      )}\n\n`;
-    if (scheduledGames.length > 0)
-      output += `🕒 UPCOMING GAMES (${
-        scheduledGames.length
-      }):\n${scheduledGames.join("\n")}`;
+    if (liveGames.length > 0) output += `🔴 LIVE NOW (${liveGames.length}):\n${liveGames.join("\n")}\n\n`;
+    if (finalGames.length > 0) output += `🏁 FINAL SCORES (${finalGames.length}):\n${finalGames.join("\n")}\n\n`;
+    if (scheduledGames.length > 0) output += `🕒 UPCOMING GAMES (${scheduledGames.length}):\n${scheduledGames.join("\n")}`;
     return output.trim();
   } catch (error) {
     console.error("❌ NBA Scoreboard API error:", error);
@@ -118,16 +91,8 @@ const fetchNBAScoreboard = async (date) => {
   }
 };
 
-const isWeatherRequest = (text) =>
-  /(weather|temperature|degrees|hot|cold|warm|rain|raining|snow|snowing) in ([a-zA-Z\s,]+)/i.test(
-    text
-  );
-const extractCity = (text) =>
-  text
-    .match(
-      /(?:weather|temperature|degrees|hot|cold|warm|rain|raining|snow|snowing) in ([a-zA-Z\s,]+)/i
-    )?.[1]
-    ?.trim();
+const isWeatherRequest = (text) => /(weather|temperature|degrees|hot|cold|warm|rain|raining|snow|snowing) in ([a-zA-Z\s,]+)/i.test(text);
+const extractCity = (text) => text.match(/(?:weather|temperature|degrees|hot|cold|warm|rain|raining|snow|snowing) in ([a-zA-Z\s,]+)/i)?.[1]?.trim();
 
 const fetchWeather = async (city) => {
   try {
@@ -143,40 +108,25 @@ const fetchWeather = async (city) => {
     const tempF = data.main.temp;
     const humidity = data.main.humidity;
     const windSpeedMph = data.wind.speed;
-    return `The current weather in ${data.name}, ${data.sys.country} is ${
-      data.weather[0].description
-    } with a temperature of ${tempF.toFixed(
-      1
-    )}°F, humidity of ${humidity}% and wind speed of ${windSpeedMph.toFixed(
-      1
-    )} mph.`;
+    return `The current weather in ${data.name}, ${data.sys.country} is ${data.weather[0].description} with a temperature of ${tempF.toFixed(1)}°F, humidity of ${humidity}% and wind speed of ${windSpeedMph.toFixed(1)} mph.`;
   } catch (error) {
     console.error("❌ Weather API error:", error);
     return `Sorry, I couldn't retrieve the weather for "${city}".`;
   }
 };
 
-const isNameQuery = (text) =>
-  /what('| i)?s your name|who are you|tell me about yourself/i.test(text);
-const isDadJokeRequest = (text) =>
-  /(tell me a joke|dad joke|make me laugh|joke|say something funny)/i.test(
-    text
-  );
+const isNameQuery = (text) => /what('| i)?s your name|who are you|tell me about yourself/i.test(text);
+const isDadJokeRequest = (text) => /(tell me a joke|dad joke|make me laugh|joke|say something funny)/i.test(text);
 
 const fetchDadJoke = async () => {
   try {
-    const response = await axios.get(
-      "https://dad-jokes-by-api-ninjas.p.rapidapi.com/v1/dadjokes",
-      {
-        headers: {
-          "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-          "X-RapidAPI-Host": "dad-jokes-by-api-ninjas.p.rapidapi.com",
-        },
-      }
-    );
-    return (
-      response.data?.[0]?.joke || "Couldn't find a dad joke right now, sorry!"
-    );
+    const response = await axios.get("https://dad-jokes-by-api-ninjas.p.rapidapi.com/v1/dadjokes", {
+      headers: {
+        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+        "X-RapidAPI-Host": "dad-jokes-by-api-ninjas.p.rapidapi.com",
+      },
+    });
+    return response.data?.[0]?.joke || "Couldn't find a dad joke right now, sorry!";
   } catch (error) {
     console.error("❌ Dad Joke API error:", error);
     return "Failed to fetch a dad joke.";
@@ -184,14 +134,10 @@ const fetchDadJoke = async () => {
 };
 
 const personalityPrompts = {
-  friendly:
-    "You are Allie, a warm and kind assistant who speaks in a friendly, encouraging tone.",
-  sassy:
-    "You are Allie, a sarcastic, witty assistant who doesn’t hold back and loves throwing playful shade.",
-  motivational:
-    "You are Allie, a high-energy motivational coach who inspires users like a personal hype squad.",
-  humorous:
-    "You are Allie, a clever, funny assistant who always responds with a comedic twist.",
+  friendly: "You are Allie, a warm and kind assistant who speaks in a friendly, encouraging tone.",
+  sassy: "You are Allie, a sarcastic, witty assistant who doesn’t hold back and loves throwing playful shade.",
+  motivational: "You are Allie, a high-energy motivational coach who inspires users like a personal hype squad.",
+  humorous: "You are Allie, a clever, funny assistant who always responds with a comedic twist."
 };
 
 // === SMART AI ROUTE ===
@@ -201,11 +147,7 @@ app.post("/api/smart", async (req, res) => {
   const personalityKey = (personality || mode || "friendly").toLowerCase();
 
   try {
-    if (
-      /what('| i)?s the time|what('| i)?s the date|current time|current date|local time/i.test(
-        prompt
-      )
-    ) {
+    if (/what('| i)?s the time|what('| i)?s the date|current time|current date|local time/i.test(prompt)) {
       return res.json({ result: await fetchLocalTimeByIP() });
     }
 
@@ -215,10 +157,7 @@ app.post("/api/smart", async (req, res) => {
     }
 
     if (isNameQuery(prompt)) {
-      return res.json({
-        result:
-          "My name is Allie, short for Artificial Language Learning & Interaction Engine. I’m here to help you with whatever you need!",
-      });
+      return res.json({ result: "My name is Allie, short for Artificial Language Learning & Interaction Engine. I’m here to help you with whatever you need!" });
     }
 
     if (isDadJokeRequest(prompt)) {
@@ -232,14 +171,10 @@ app.post("/api/smart", async (req, res) => {
       return res.json({ result: `NBA games for ${readableDate}:\n\n${games}` });
     }
 
-    const wrapper =
-      personalityPrompts[personalityKey] || personalityPrompts.friendly;
+    const wrapper = personalityPrompts[personalityKey] || personalityPrompts.friendly;
     const messages = [
       { role: "system", content: wrapper },
-      ...conversationHistory.map((entry) => ({
-        role: entry.role,
-        content: entry.content,
-      })),
+      ...conversationHistory.map(entry => ({ role: entry.role, content: entry.content })),
       { role: "user", content: prompt },
     ];
 
@@ -291,35 +226,18 @@ app.post("/api/schedule", async (req, res) => {
 
   try {
     // View schedule
-    if (
-      /what('| i)?s on my schedule|what('| i)?s my schedule|show schedule|list schedule/i.test(
-        prompt
-      )
-    ) {
-      const snapshot = await db
-        .collection("schedules")
-        .orderBy("createdAt", "desc")
-        .get();
-      const events = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      if (events.length === 0)
-        return res.json({ message: "Your schedule is empty." });
-      const eventList = events
-        .map((event) => `${event.task} at ${event.time} on ${event.date}`)
-        .join("\n");
-      return res.json({
-        message: `Here are your upcoming events:\n\n${eventList}`,
-      });
+    if (/what('| i)?s on my schedule|what('| i)?s my schedule|show schedule|list schedule/i.test(prompt)) {
+      const snapshot = await db.collection("schedules").orderBy("createdAt", "desc").get();
+      const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      if (events.length === 0) return res.json({ message: "Your schedule is empty." });
+      const eventList = events.map(event => `${event.task} at ${event.time} on ${event.date}`).join("\n");
+      return res.json({ message: `Here are your upcoming events:\n\n${eventList}` });
     }
 
     // Add event
     const taskMatch = prompt.match(/remind me to (.+?) (?:at|on)/i);
     const timeMatch = prompt.match(/at ([0-9]{1,2}(?::[0-9]{2})?\s?(am|pm)?)/i);
-    const dateMatch = prompt.match(
-      /(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i
-    );
+    const dateMatch = prompt.match(/(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
 
     const task = taskMatch ? taskMatch[1].trim() : null;
     const time = timeMatch ? timeMatch[1].toLowerCase() : "unspecified";
@@ -355,23 +273,16 @@ app.post("/api/schedule/delete", async (req, res) => {
     }
 
     if (!prompt) {
-      return res
-        .status(400)
-        .json({ error: "Prompt or id is required to delete an event." });
+      return res.status(400).json({ error: "Prompt or id is required to delete an event." });
     }
 
     const snapshot = await db.collection("schedules").get();
-    const events = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     let keyword = prompt.trim().toLowerCase();
-    keyword = keyword
-      .replace(/^delete\s*/i, "")
-      .replace(/^remove\s*/i, "")
-      .trim();
+keyword = keyword.replace(/^delete\s*/i, "").replace(/^remove\s*/i, "").trim();
 
-    const matches = events.filter((event) =>
-      event.task_lower.includes(keyword)
-    );
+    const matches = events.filter(event => event.task_lower.includes(keyword));
 
     if (matches.length === 0) {
       return res.json({ message: `No events found containing "${keyword}".` });
@@ -380,16 +291,11 @@ app.post("/api/schedule/delete", async (req, res) => {
       await docRef.delete();
       return res.json({ message: `Deleted "${matches[0].task}".` });
     } else {
-      const list = matches
-        .map(
-          (event, i) =>
-            `${i + 1}. ${event.task} at ${event.time} on ${event.date} (ID: ${
-              event.id
-            })`
-        )
-        .join("\n");
+      const list = matches.map((event, i) =>
+        `${i + 1}. ${event.task} at ${event.time} on ${event.date} (ID: ${event.id})`
+      ).join("\n");
       return res.json({
-        message: `I found multiple matches:\n\n${list}\n\nPlease provide the specific ID to delete.`,
+        message: `I found multiple matches:\n\n${list}\n\nPlease provide the specific ID to delete.`
       });
     }
   } catch (error) {
@@ -403,6 +309,18 @@ app.post("/api/schedule/delete", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+
+
+
+
+
+
+
+
+
+
+
 
 // const express = require("express");
 // const cors = require("cors");
