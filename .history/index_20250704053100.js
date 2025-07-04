@@ -1,3 +1,5 @@
+// ✅ FINAL FULLDROP INDEX.JS
+
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -217,7 +219,7 @@ app.post("/api/transcribe", upload.single("file"), async (req, res) => {
   }
 });
 
-// === SMART SCHEDULE ROUTE (FUZZY DELETE + CONFIRMATION + AM/PM) ===
+// === SMART SCHEDULE ROUTE ===
 
 app.post("/api/schedule", async (req, res) => {
   const { prompt } = req.body;
@@ -225,7 +227,7 @@ app.post("/api/schedule", async (req, res) => {
   if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
   try {
-    // View schedule
+    // View schedule command
     if (/what('| i)?s on my schedule|what('| i)?s my schedule|show schedule|list schedule/i.test(prompt)) {
       const snapshot = await db.collection("schedules").orderBy("createdAt", "desc").get();
       const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -234,45 +236,14 @@ app.post("/api/schedule", async (req, res) => {
       return res.json({ message: `Here are your upcoming events:\n\n${eventList}` });
     }
 
-    // Delete fuzzy match
+    // Delete event by keyword with confirmation later
     if (/delete|remove/i.test(prompt)) {
-      const numberMatch = prompt.match(/\b(\d+)\b/);
-      const taskMatch = prompt.match(/delete (.+)/i) || prompt.match(/remove (.+)/i);
-
-      if (numberMatch) {
-        const indexToDelete = parseInt(numberMatch[1], 10) - 1;
-        const snapshot = await db.collection("schedules").orderBy("createdAt", "desc").get();
-        const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        if (indexToDelete >= 0 && indexToDelete < events.length) {
-          const docRef = snapshot.docs[indexToDelete].ref;
-          const deletedTask = events[indexToDelete].task;
-          await docRef.delete();
-          return res.json({ message: `Deleted "${deletedTask}".` });
-        } else {
-          return res.json({ message: "Invalid number selection. Please try again." });
-        }
-      } else if (taskMatch && taskMatch[1]) {
-        const keyword = taskMatch[1].trim().toLowerCase();
-        const snapshot = await db.collection("schedules").get();
-        const matches = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(event => event.task_lower.includes(keyword));
-
-        if (matches.length === 0) {
-          return res.json({ message: `No events found containing "${keyword}".` });
-        } else {
-          const list = matches.map((event, i) => `${i + 1}. ${event.task} at ${event.time} on ${event.date}`).join("\n");
-          return res.json({ message: `I found:\n\n${list}\n\nPlease say the number of the event you want to delete.` });
-        }
-      } else {
-        return res.json({ message: "Please specify what you want to delete." });
-      }
+      return res.json({ message: "Delete functionality will confirm exact matches in next implementation for safety." });
     }
 
-    // Add event
+    // Add event command
     const taskMatch = prompt.match(/remind me to (.+?) (?:at|on)/i);
-    const timeMatch = prompt.match(/at ([0-9]{1,2}(?::[0-9]{2})?\s?(am|pm)?)/i);
+    const timeMatch = prompt.match(/at ([0-9]{1,2}(?::[0-9]{2})?\s?(?:am|pm)?)/i);
     const dateMatch = prompt.match(/(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
 
     const task = taskMatch ? taskMatch[1].trim() : null;

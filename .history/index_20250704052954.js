@@ -1,3 +1,7 @@
+// ✅ FINAL FULLDROP INDEX.JS
+app.post("/api/schedule/delete", async (req, res) => {
+
+
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
