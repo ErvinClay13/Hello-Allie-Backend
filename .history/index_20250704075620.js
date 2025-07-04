@@ -284,9 +284,44 @@ app.post("/api/transcribe", upload.single("file"), async (req, res) => {
 
 // === SMART SCHEDULE ROUTE (VIEW + ADD ONLY) ===
 
-// === SMART SCHEDULE ROUTE (VIEW + ADD ONLY) ===
-
 app.post("/api/schedule", async (req, res) => {
+  const { prompt } = req.body;
+
+  if (!prompt) return res.status(400).json({ error: "Prompt is required" });
+
+  try {
+    // View schedule
+    if (
+      /what('| i)?s on my schedule|what('| i)?s my schedule|show schedule|list schedule/i.test(
+        prompt
+      )
+    ) {
+      const snapshot = await db
+        .collection("schedules")
+        .orderBy("createdAt", "desc")
+        .get();
+      const events = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      if (events.length === 0)
+        return res.json({ message: "Your schedule is empty." });
+      const eventList = events
+        .map((event) => `${event.task} at ${event.time} on ${event.date}`)
+        .join("\n");
+      return res.json({
+        message: `Here are your upcoming events:\n\n${eventList}`,
+      });
+    }
+
+    // Add event
+    // const taskMatch = prompt.match(/remind me to (.+?) (?:at|on)/i);
+    // const timeMatch = prompt.match(/at ([0-9]{1,2}(?::[0-9]{2})?\s?(am|pm)?)/i);
+    // const dateMatch = prompt.match(
+    //   /(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i
+    // );
+
+   app.post("/api/schedule", async (req, res) => {
   const { prompt } = req.body;
 
   if (!prompt) return res.status(400).json({ error: "Prompt is required" });
@@ -306,10 +341,12 @@ app.post("/api/schedule", async (req, res) => {
     let timeMatch = prompt.match(/at ([0-9]{1,2}(?::[0-9]{2})?\s?(am|pm)?)/i);
     let dateMatch = prompt.match(/on (today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
 
+    // If no dateMatch found, check for day words without "on"
     if (!dateMatch) {
       dateMatch = prompt.match(/\b(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i);
     }
 
+    // If no timeMatch found, check for standalone time elsewhere in prompt
     if (!timeMatch) {
       timeMatch = prompt.match(/([0-9]{1,2}(?::[0-9]{2})?\s?(am|pm)?)/i);
     }
@@ -397,6 +434,13 @@ app.post("/api/schedule/delete", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+
+
+
+
+
+
 
 // const express = require("express");
 // const cors = require("cors");

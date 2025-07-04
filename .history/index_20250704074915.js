@@ -284,8 +284,6 @@ app.post("/api/transcribe", upload.single("file"), async (req, res) => {
 
 // === SMART SCHEDULE ROUTE (VIEW + ADD ONLY) ===
 
-// === SMART SCHEDULE ROUTE (VIEW + ADD ONLY) ===
-
 app.post("/api/schedule", async (req, res) => {
   const { prompt } = req.body;
 
@@ -293,26 +291,35 @@ app.post("/api/schedule", async (req, res) => {
 
   try {
     // View schedule
-    if (/what('| i)?s on my schedule|what('| i)?s my schedule|show schedule|list schedule/i.test(prompt)) {
-      const snapshot = await db.collection("schedules").orderBy("createdAt", "desc").get();
-      const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      if (events.length === 0) return res.json({ message: "Your schedule is empty." });
-      const eventList = events.map(event => `${event.task} at ${event.time} on ${event.date}`).join("\n");
-      return res.json({ message: `Here are your upcoming events:\n\n${eventList}` });
+    if (
+      /what('| i)?s on my schedule|what('| i)?s my schedule|show schedule|list schedule/i.test(
+        prompt
+      )
+    ) {
+      const snapshot = await db
+        .collection("schedules")
+        .orderBy("createdAt", "desc")
+        .get();
+      const events = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      if (events.length === 0)
+        return res.json({ message: "Your schedule is empty." });
+      const eventList = events
+        .map((event) => `${event.task} at ${event.time} on ${event.date}`)
+        .join("\n");
+      return res.json({
+        message: `Here are your upcoming events:\n\n${eventList}`,
+      });
     }
 
-    // Add event with improved parsing
-    const taskMatch = prompt.match(/remind me to (.+?)(?: at| on|$)/i);
-    let timeMatch = prompt.match(/at ([0-9]{1,2}(?::[0-9]{2})?\s?(am|pm)?)/i);
-    let dateMatch = prompt.match(/on (today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
-
-    if (!dateMatch) {
-      dateMatch = prompt.match(/\b(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i);
-    }
-
-    if (!timeMatch) {
-      timeMatch = prompt.match(/([0-9]{1,2}(?::[0-9]{2})?\s?(am|pm)?)/i);
-    }
+    // Add event
+    // const taskMatch = prompt.match(/remind me to (.+?) (?:at|on)/i);
+    // const timeMatch = prompt.match(/at ([0-9]{1,2}(?::[0-9]{2})?\s?(am|pm)?)/i);
+    // const dateMatch = prompt.match(
+    //   /(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i
+    // );
 
     const task = taskMatch ? taskMatch[1].trim() : null;
     const time = timeMatch ? timeMatch[1].toLowerCase() : "unspecified";
@@ -335,7 +342,6 @@ app.post("/api/schedule", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 
 // === SCHEDULE DELETE ROUTE (FUZZY DELETE + CONFIRMATION + ID-BASED) ===
 
