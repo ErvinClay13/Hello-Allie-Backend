@@ -1,24 +1,39 @@
 // services/openai.js
+// All OpenAI interactions live here — chat completions and Whisper.
+// Centralizing this means you change the model in ONE place and
+// every route picks it up automatically.
+
 const { OpenAI } = require("openai");
 
-const openai     = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 const MODEL      = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || "600", 10);
 
 // ── PERSONALITY PROMPTS ───────────────────────────────────────────────────────
 const personalities = {
   friendly:     "You are warm, kind, encouraging, and always positive.",
-  ghetto:       "You are sarcastic, witty, using curse words and swear words and being very disrespectful with a bad attitude.",
+  ghetto:        "You are sarcastic, witty, using curse words and swear words and being very disrespectful with a bad attitude.",
+  sassy:        "You are sarcastic, witty, and love playful banter. You throw shade but keep it fun.",
   motivational: "You are a high-energy hype coach. Every response fires the user up to take action.",
   humorous:     "You are clever and funny. Every response has a comedic twist or unexpected punchline.",
 };
 
 // ── BUILD SYSTEM PROMPT ───────────────────────────────────────────────────────
+// Called by the smart route. Injects:
+//   - Allie's base identity
+//   - Current date/time so she's never "frozen in time"
+//   - User's name + goal (from their profile)
+//   - Active personality tone
+//   - Language instruction
+//   - Any real-world context fetched from live APIs
 function buildSystemPrompt({ dateTimeContext, userProfile, personality, language, realWorldContext }) {
-  const tone      = personalities[personality] || personalities.friendly;
-  const lang      = language === "es" ? "Respond entirely in Spanish." : "Respond in clear, natural English.";
-  const name      = userProfile?.displayName ? `The user's name is ${userProfile.displayName}.` : "";
-  const goal      = userProfile?.goal        ? `They primarily use you for: ${userProfile.goal}.` : "";
+  const tone   = personalities[personality] || personalities.friendly;
+  const lang   = language === "es" ? "Respond entirely in Spanish." : "Respond in clear, natural English.";
+
+  const name   = userProfile?.displayName ? `The user's name is ${userProfile.displayName}.` : "";
+  const goal   = userProfile?.goal        ? `They primarily use you for: ${userProfile.goal}.` : "";
+
   const realWorld = realWorldContext
     ? `\n\nREAL-WORLD CONTEXT (use this to answer accurately):\n${realWorldContext}`
     : "";
@@ -39,15 +54,12 @@ function buildSystemPrompt({ dateTimeContext, userProfile, personality, language
 }
 
 // ── CHAT COMPLETION ───────────────────────────────────────────────────────────
+// Attempts with full context, retries with trimmed context on token errors.
 async function generateReply({ system, messages }) {
   const call = async (msgs) => {
-    const cleanMsgs = msgs
-      .filter((m) => m?.content && typeof m.content === "string" && m.content.trim().length > 0)
-      .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content.trim() }));
-
     const resp = await openai.chat.completions.create({
       model:       MODEL,
-      messages:    [{ role: "system", content: system }, ...cleanMsgs],
+      messages:    [{ role: "system", content: system }, ...msgs],
       temperature: 0.75,
       max_tokens:  MAX_TOKENS,
     });
@@ -57,27 +69,13 @@ async function generateReply({ system, messages }) {
   try {
     return await call(messages);
   } catch (err) {
+    // If context too long, retry with last 8 messages only
     if (err?.status === 400 || err?.code === "context_length_exceeded") {
       console.warn("Context too long — retrying with trimmed history");
       return await call(messages.slice(-8));
     }
     throw err;
   }
-}
-
-// ── STREAMING CHAT COMPLETION ─────────────────────────────────────────────────
-async function generateReplyStream({ system, messages }) {
-  const cleanMsgs = messages
-    .filter((m) => m?.content && typeof m.content === "string" && m.content.trim().length > 0)
-    .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content.trim() }));
-
-  return openai.chat.completions.create({
-    model:       MODEL,
-    messages:    [{ role: "system", content: system }, ...cleanMsgs],
-    temperature: 0.75,
-    max_tokens:  MAX_TOKENS,
-    stream:      true,
-  });
 }
 
 // ── WHISPER TRANSCRIPTION ─────────────────────────────────────────────────────
@@ -91,6 +89,8 @@ async function transcribeAudio(fileStream, language = "en") {
 }
 
 // ── CONVERSATION SUMMARY ──────────────────────────────────────────────────────
+// Called after a session to auto-generate a short summary saved to Firestore.
+// This feeds into the user's memory on future sessions.
 async function summarizeConversation(messages) {
   try {
     const transcript = messages
@@ -119,11 +119,4 @@ async function summarizeConversation(messages) {
   }
 }
 
-module.exports = {
-  openai,
-  buildSystemPrompt,
-  generateReply,
-  generateReplyStream,
-  transcribeAudio,
-  summarizeConversation,
-};
+module.exports = { openai, buildSystemPrompt, generateReply, transcribeAudio, summarizeConversation };
