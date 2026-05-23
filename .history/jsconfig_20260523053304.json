@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "checkJs": false,
+    "module": "commonjs",
+    "target": "es2020",
+    "moduleResolution": "node",
+    "ignoreDeprecations": "5.0"
+  },
+  "exclude": [
+    "node_modules"
+  ]
+}
+
