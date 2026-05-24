@@ -71,15 +71,6 @@ router.post("/", requireAuth, async (req, res) => {
       }
     }
 
-    // ── Inspiration / Prayer intent ─────────────────────────────────────────
-    // Detected before other intents so we can give a beautifully crafted response
-    const isInspiration = /pray|prayer|inspire|inspiration|motivate|quote|encouraging|bible verse|scripture|affirmation|blessing|uplifting/i.test(userText);
-    if (isInspiration) {
-      const inspirationType = /pray|prayer|bible|scripture|blessing/i.test(userText) ? "prayer" : "inspirational quote";
-      const inspirePrompt = "Generate a powerful, heartfelt " + inspirationType + " that is shareable on social media. Make it meaningful, uplifting, and memorable. Keep it under 3 sentences. Do not add hashtags or emojis.";
-      // Fall through to GPT with enhanced prompt
-    }
-
     // ── Quick intent shortcuts (no GPT needed) ───────────────────────────────
     if (intents.time(userText)) {
       const result = await fetchLocalTime();
