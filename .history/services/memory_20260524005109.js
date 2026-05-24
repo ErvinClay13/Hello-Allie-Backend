@@ -196,6 +196,29 @@ async function writeAssistantReply(chatId, text, uid) {
   if (uid) incrementMessageStats(uid).catch(() => {});
 }
 
+// ── GET MOOD CONTEXT ─────────────────────────────────────────────────────────
+async function getMoodContext(uid) {
+  try {
+    const snap = await db
+      .collection("users").doc(uid)
+      .collection("moods")
+      .orderBy("savedAt", "desc")
+      .limit(7)
+      .get();
+
+    if (snap.empty) return "";
+
+    const entries = snap.docs.map((d) => ({ date: d.id, ...d.data() }));
+    const avg     = entries.reduce((s, e) => s + (e.score || 5), 0) / entries.length;
+    const recent  = entries.slice(0, 3).map((e) => e.mood).join(", ");
+    const trend   = avg >= 7 ? "positive" : avg <= 3 ? "low" : "stable";
+
+    return "User mood trend this week: " + trend + " (avg " + avg.toFixed(1) + "/10). Recent moods: " + recent + ".";
+  } catch {
+    return "";
+  }
+}
+
 module.exports = {
   getUserProfile,
   saveOnboardingProfile,
@@ -204,6 +227,7 @@ module.exports = {
   deleteMemory,
   detectMemoryCommand,
   buildMemoryContext,
+  getMoodContext,
   touchLastSeen,
   incrementMessageStats,
   saveConversationSummary,

@@ -2,8 +2,7 @@
 
 const express         = require("express");
 const router          = express.Router();
-const { requireAuth }      = require("../middleware/auth");
-const { checkUsageLimit } = require("../middleware/usageLimit");
+const { requireAuth } = require("../middleware/auth");
 
 const {
   intents, extractCity, detectNBAOffset,
@@ -30,7 +29,7 @@ const {
 const MAX_USER_LEN = 4000;
 
 // ── POST /api/smart ───────────────────────────────────────────────────────────
-router.post("/", requireAuth, checkUsageLimit, async (req, res) => {
+router.post("/", requireAuth, async (req, res) => {
   try {
     const uid = req.uid;
     const {
