@@ -10,14 +10,8 @@ const path     = require("path");
 const { requireAuth }    = require("../middleware/auth");
 const { transcribeAudio } = require("../services/openai");
 
-// Ensure uploads directory exists on every request (Render wipes it on cold start)
-const UPLOAD_DIR = "uploads/";
-if (!require("fs").existsSync(UPLOAD_DIR)) {
-  require("fs").mkdirSync(UPLOAD_DIR, { recursive: true });
-}
-
 const upload = multer({
-  dest:   UPLOAD_DIR,
+  dest:   "uploads/",
   limits: { fileSize: 25 * 1024 * 1024 }, // 25MB — Whisper's max
 });
 
@@ -63,18 +57,11 @@ router.post("/", requireAuth, upload.single("file"), async (req, res) => {
   } catch (err) {
     cleanup();
     console.error("Transcription error:", err?.message || err);
-    console.error("Transcription error status:", err?.status || err?.response?.status);
-    console.error("Transcription error detail:", JSON.stringify(err?.error || err?.response?.data || ""));
-
-    // Quota exceeded or billing issue
-    if (err?.status === 429 || err?.message?.includes("quota") || err?.message?.includes("billing")) {
-      return res.status(429).json({ error: "OpenAI quota exceeded - check your billing" });
-    }
     // Return empty text instead of 500 for audio issues
     if (err?.message?.includes("audio") || err?.message?.includes("file")) {
       return res.json({ text: "" });
     }
-    return res.status(500).json({ error: "Failed to transcribe audio", detail: err?.message });
+    return res.status(500).json({ error: "Failed to transcribe audio" });
   }
 });
 
